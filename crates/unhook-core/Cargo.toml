@@ -1,0 +1,19 @@
+[package]
+name = "unhook-core"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Safe hosts-file engine and fixture-friendly CLI for Unhook"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+url = "2"
+fs2 = "0.4"
+tempfile = "3"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[[bin]]
+name = "unhook-cli"
+path = "src/main.rs"
