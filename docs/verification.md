@@ -1,5 +1,17 @@
 # Verification — 1 October 2026
 
+Browser companion update:
+
+- `npm test`: 27 tests pass, including exact-domain boundaries, open/restored tabs, blocklist edits, Stop, expiry, and stale/disconnected launcher state.
+- `cargo test --workspace --offline`: 30 Rust tests pass, including atomic app snapshot publication, Unix user-only permissions, read-only native messages, and message-size limits.
+- Frontend build, Rust formatting, and strict workspace Clippy pass.
+- macOS app and DMG bundle successfully with the separate native messaging host. `hdiutil verify` confirms the DMG checksum. Packaging required host access to macOS disk-image services.
+- Updated `/Applications/Unhook.app`, reopened it, and verified automatic Chrome/Brave native host registration and live inactive snapshot publication with the user's existing blocklist preserved.
+- Invoked the installed host using actual native message framing; it read the running app's current state and rejected an unauthorized extension origin.
+- Inspected the companion focus page in the in-app browser; layout and accessible content render correctly.
+
+Actual extension installation and request blocking in Brave/Chrome still require the one-time browser extension installation and a live browser acceptance run. Browser automation cannot access internal extension-management pages. Windows/Linux registration and installers require native platform verification. Automated checks used fixture hosts only.
+
 Verified locally on macOS Apple Silicon:
 
 - `npm test`: 22 frontend/preview tests pass, including validation, persisted expiry, schedule/break boundaries, stopped-day suppression, storage failure rollback, and countdown clock handling.

@@ -2,10 +2,12 @@
 //!
 //! A dedicated marker parser is intentional: general hosts-file serializers can rewrite
 //! comments, spacing, encodings, and unrelated records. Unhook only owns its marked range.
+mod browser;
 mod dns;
 mod hosts;
 mod schedule;
 
+pub use browser::{BrowserState, BROWSER_EXTENSION_ORIGIN, BROWSER_HOST_NAME};
 pub use dns::{flush_dns, system_hosts_path};
 pub use hosts::{render_hosts, HostsManager, HostsStatus, WriteOutcome};
 pub use schedule::{parse_time, Schedule};

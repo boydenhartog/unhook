@@ -3963,6 +3963,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "unhook-browser-host"
+version = "0.1.0"
+dependencies = [
+ "dirs",
+ "serde_json",
+ "tempfile",
+ "unhook-core",
+]
+
+[[package]]
 name = "unhook-core"
 version = "0.1.0"
 dependencies = [
@@ -3978,6 +3988,7 @@ name = "unhook-desktop"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "dirs",
  "serde",
  "serde_json",
  "tauri",

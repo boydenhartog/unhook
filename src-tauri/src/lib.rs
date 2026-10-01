@@ -1,3 +1,4 @@
+mod browser;
 mod controller;
 pub mod privilege;
 mod session;
@@ -20,10 +21,25 @@ struct Desktop {
     snapshot: Mutex<AppStatus>,
     status_menu: MenuItem<tauri::Wry>,
     may_exit: AtomicBool,
+    browser: browser::Bridge,
 }
 
-fn publish(app: &tauri::AppHandle, status: AppStatus) {
+fn publish(app: &tauri::AppHandle, mut status: AppStatus) {
     let desktop = app.state::<Desktop>();
+    let publish_warning = desktop
+        .browser
+        .publish(&status, Local::now().timestamp_millis())
+        .err();
+    let browser_warning = desktop.browser.warning.clone().or(publish_warning);
+    if let Some(warning) = browser_warning {
+        let message = format!("Browser companion could not connect: {warning}");
+        status.warning = Some(
+            status
+                .warning
+                .map(|previous| format!("{previous} {message}"))
+                .unwrap_or(message),
+        );
+    }
     let text = if status.error.is_some() {
         "Unhook · action needed".to_owned()
     } else if status.active {
@@ -141,6 +157,11 @@ pub fn run() {
             } else {
                 path
             };
+            let fixture = cfg!(debug_assertions) && std::env::var_os("UNHOOK_TEST_HOSTS").is_some();
+            let browser = browser::Bridge::setup(
+                path.parent().ok_or("Invalid app data location")?.into(),
+                fixture,
+            );
             let controller = Controller::load(path, Box::new(NativeHosts));
             let initial = controller.status(Local::now());
             let status_menu = MenuItem::with_id(app, "status", "Focus off", false, None::<&str>)?;
@@ -180,6 +201,7 @@ pub fn run() {
                 snapshot: Mutex::new(initial.clone()),
                 status_menu,
                 may_exit: AtomicBool::new(false),
+                browser,
             });
             publish(app.handle(), initial);
             let handle = app.handle().clone();

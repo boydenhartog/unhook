@@ -1,0 +1,13 @@
+[package]
+name = "unhook-browser-host"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+unhook-core = { path = "../unhook-core" }
+serde_json = "1"
+dirs = "7"
+
+[dev-dependencies]
+tempfile = "3"

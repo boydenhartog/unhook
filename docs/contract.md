@@ -24,3 +24,5 @@ Engine exports normalized domain validation; conservative marked-section hosts e
 Default blocklist: youtube.com, facebook.com, instagram.com, reddit.com, x.com. Schedule defaults disabled, Mon-Fri 09:00–17:00 with 12:30–13:00 break.
 
 Core API agreed with agents through messages. Do not alter system hosts during development verification. Fixture-path CLI exercises are safe. Schedules require the desktop process to be running; ordinary quit restores owned hosts entries, crashes require recovery on restart or CLI.
+
+Browser companion: a bundled `unhook-browser-host` executable accepts only native `{"type":"getState"}` messages from `chrome-extension://glcpihjbnhkbbdngjcmdgapodackkkmo/`. It responds with `null` or `{ version: 1, domains: string[], active: boolean, endsAt: number | null, updatedAt: number }` read from the app's atomic `browser-state.json`. There are no browser-to-app mutations. App status publication refreshes the snapshot on each scheduler tick. Extension rules follow the actual accepted session, expire at `endsAt`, and release after 15 seconds without a current app snapshot. See [browser companion](browser-companion.md) for setup and behavior.

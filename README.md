@@ -37,6 +37,8 @@ After a crash or forced termination, marked entries may remain until Unhook rest
 
 Hosts blocking matches exact domain names; it cannot automatically cover arbitrary subdomains, apps using direct IP addresses, proxies, or every browser DNS/cache behavior. DNS flush failures are displayed as warnings because the hosts edit may have succeeded. Existing browser connections may remain open.
 
+For Brave and Chrome, the [browser companion](docs/browser-companion.md) adds request blocking and a focus page, following the desktop app's blocklist and accepted session state automatically. Unhook remains the only settings and session controller. Install the extension once; the updated app registers its bundled, read-only native host on launch.
+
 ## Engine CLI
 
 The core CLI is independent of Tauri. Use a temporary fixture for development; production hosts changes require root/administrator access.
@@ -50,6 +52,7 @@ cargo run -p unhook-core --bin unhook-cli -- --help
 ```sh
 npm test
 npm run build
+npm run prepare:browser-host
 cargo test --workspace
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
