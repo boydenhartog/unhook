@@ -23,7 +23,7 @@ Open `http://127.0.0.1:1420`. The browser shows a clearly labeled **preview**: s
 
 - A focus session blocks the configured domains until its timer expires. You can end it early.
 - Weekly schedules use the computer's local time, selected weekdays, and a same-day start/end window. An optional break temporarily unblocks sites. Overnight windows are rejected.
-- Manual sessions take priority over a schedule, including a scheduled break. Ending focus also skips the currently active scheduled segment; the next segment can start normally.
+- Manual sessions take priority over a schedule, including a scheduled break. Ending focus also skips the rest of the current day's scheduled window; the next scheduled day can start normally.
 - Closing the desktop window keeps the app running in the tray. Choose **Quit** there to restore Unhook's hosts section and exit.
 - Schedules and countdowns run in Rust, independent of the webview. The process must remain running; this version has no boot-time system service or autostart integration.
 
@@ -67,6 +67,8 @@ npm run tauri -- build --bundles deb
 ```
 
 Installers are written under `target/release/bundle/`. The included GitHub Actions workflow verifies the frontend and Rust code and builds all three native formats. It produces unsigned test artifacts; public distribution needs macOS signing/notarization and Windows signing credentials configured by the maintainer. Refer to the official [Windows installer](https://v2.tauri.app/distribute/windows-installer/) and [macOS application bundle](https://v2.tauri.app/distribute/macos-application-bundle/) guides.
+
+If macOS DMG packaging reports that it cannot send Apple events to Finder, use `CI=true npm run tauri -- build --bundles dmg`. This skips cosmetic Finder layout automation and builds the same app without requesting additional OS permission. See [verification notes](docs/verification.md) for what was exercised locally.
 
 ## Structure
 

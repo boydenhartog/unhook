@@ -2,6 +2,8 @@
 
 Do not exercise blocking against the real system hosts file while developing. Unit and integration tests use temporary files. The browser preview never accesses native hosts.
 
+For native GUI development, debug builds also accept `UNHOOK_TEST_HOSTS` and `UNHOOK_TEST_STATE` pointing to temporary fixture files. Set both before `npm run desktop`. In this mode DNS flushing and privilege elevation are disabled, and the UI displays a fixture warning when hosts change. These environment overrides are compiled out of release builds. The elevated helper always uses the real, fixed system path; never invoke it as part of a fixture test.
+
 ## System paths
 
 | Platform | Hosts location | DNS cache action |
