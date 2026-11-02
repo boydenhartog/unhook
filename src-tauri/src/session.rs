@@ -102,6 +102,8 @@ pub struct Persisted {
     pub settings: Settings,
     pub manual_until: Option<i64>,
     pub suppressed_until: Option<i64>,
+    pub system_blocking_enabled: bool,
+    pub setup_completed: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

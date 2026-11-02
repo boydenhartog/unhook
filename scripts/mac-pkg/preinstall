@@ -1,0 +1,61 @@
+#!/bin/sh
+# Installer runs this script as root; only fixed protected service paths execute.
+set -eu
+. "$(/usr/bin/dirname "$0")/common.sh"
+ancestors
+[ "${3:-/}" = "/" ] || fail "Install Unhook on the current startup disk."
+[ "$(/usr/bin/sw_vers -productVersion | /usr/bin/cut -d. -f1)" -ge 13 ] || fail "macOS 13 or later is required."
+[ ! -L /Applications/Unhook.app ] || fail "The Unhook installation path is a symbolic link. Resolve this conflict before installing."
+if /usr/bin/pgrep -x unhook >/dev/null 2>&1; then
+  fail "Quit Unhook before installing. Finish or stop your focus session first."
+fi
+if /bin/launchctl print system/org.unhook.system-helper >/dev/null 2>&1; then
+  fail "Open Unhook Setup and choose Remove system service, then quit Unhook before retrying. Re-enable system blocking after the update."
+fi
+if [ -e /Library/LaunchDaemons/org.unhook.system-helper.plist ] || [ -L /Library/LaunchDaemons/org.unhook.system-helper.plist ] || [ -e /Library/PrivilegedHelperTools/org.unhook.system-helper ] || [ -L /Library/PrivilegedHelperTools/org.unhook.system-helper ]; then
+  fail "An installer-managed system service already exists. Remove that service using its original uninstaller first."
+fi
+if [ -e /Applications/Unhook.app ]; then
+  [ -d /Applications/Unhook.app ] || fail "The Unhook installation path is not an app directory."
+  info=/Applications/Unhook.app/Contents/Info.plist
+  [ ! -L "$info" ] || fail "The installed app metadata is a symbolic link."
+  id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$info" 2>/dev/null) || fail "Cannot verify the installed application."
+  [ "$id" = "org.unhook.desktop" ] || fail "A different application occupies /Applications/Unhook.app."
+  previous=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$info" 2>/dev/null) || fail "Cannot read the installed app version."
+  /bin/echo "$previous" | /usr/bin/awk '/^[0-9]+\.[0-9]+\.[0-9]+$/ {valid=1} END {exit !valid}' || fail "The installed app has an unsupported version."
+  /usr/bin/awk -v old="$previous" -v new='@VERSION@' 'BEGIN {split(old,a,".");split(new,b,".");for(i=1;i<=3;i++){if(a[i]+0>b[i]+0)exit 1;if(a[i]+0<b[i]+0)exit 0}}' || fail "A newer Unhook version is installed. Downgrades are not supported."
+  if [ '@DEVELOPMENT@' = '1' ]; then
+    # Keep a private development package from replacing a trusted release.
+    if /usr/bin/codesign -d --verbose=2 /Applications/Unhook.app 2>&1 | /usr/bin/awk '/^Authority=Developer ID Application:/ {found=1} END {exit !found}'; then
+      fail "A signed release is installed. A development package cannot replace it."
+    fi
+  else
+    # Allow migration of the original ad-hoc beta. A trusted existing release
+    # must retain the same publisher, not only the same bundle identifier.
+    old_team=$(/usr/bin/codesign -d --verbose=2 /Applications/Unhook.app 2>&1 | /usr/bin/awk -F= '/^TeamIdentifier=/ {print $2}')
+    case "$old_team" in
+      ''|'not set') ;;
+      '@TEAM@') ;;
+      *) fail "The installed app has a different signing team. Resolve this conflict before installing." ;;
+    esac
+  fi
+fi
+# Stop the installed daemon before a one-shot restore, so no connected client
+# can race restoration. Only execute the old helper after protected-path checks.
+if [ -e "$helper" ]; then
+  scratch=$(/usr/bin/mktemp -d /private/tmp/unhook-preinstall.XXXXXX)
+  trap '/bin/rm -rf "$scratch"' EXIT HUP INT TERM
+  verify_code "$helper" org.unhook.system-helper
+  if /bin/launchctl print "system/$label" >/dev/null 2>&1; then
+    /bin/launchctl bootout "system/$label" || fail "Cannot stop installed service; no files were replaced."
+  fi
+  if ! "$helper" --restore-installed; then
+    # Restart the old protected job so lease recovery continues after failure.
+    if [ -f "$job" ]; then /bin/launchctl bootstrap system "$job" || :; fi
+    fail "Could not restore system access. Existing payload retained; repair restoration before updating."
+  fi
+elif /bin/launchctl print "system/$label" >/dev/null 2>&1; then
+  fail "Installed service has no protected helper. Repair or remove the previous installation before retrying."
+fi
+# Never launch the GUI as root or write browser profiles.
+exit 0

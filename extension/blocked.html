@@ -1,5 +1,81 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Take a breath · Unhook</title><link rel="stylesheet" href="blocked.css"></head>
-<body><main><span class="brand">unhook.</span><h1>A little space to focus.</h1><p>This website is taking a break during your focus session.</p><p class="hint">Manage your blocklist and session in the Unhook desktop app.<br>When focus ends, you can open the website again.</p></main></body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>This can wait · Unhook</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="blocked.css" />
+    <script type="module" src="blocked.js"></script>
+  </head>
+  <body>
+    <main>
+      <header>
+        <span class="brand">
+          <span class="brand-symbol" aria-hidden="true">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              focusable="false"
+            >
+              <path
+                d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"
+              />
+              <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12" />
+            </svg>
+          </span>
+          <span>unhook<span class="brand-period">.</span></span>
+        </span>
+      </header>
+      <section id="pause" aria-labelledby="pause-heading">
+        <svg
+          class="unhook-scene"
+          viewBox="0 0 320 200"
+          fill="none"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path
+            class="thread"
+            d="M84 8v115c0 18 11 31 26 31 13 0 23-9 23-20 0-9-5-15-12-15-6 0-11 5-11 11"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+          />
+          <g transform="translate(132 118) scale(1.15)">
+            <g class="leaf">
+              <path
+                d="M0 26C-29 10-28-24 5-36c22-8 35-7 49-20 3 26-2 58-29 75C16 25 7 28 0 26Z"
+                fill="currentColor"
+              />
+              <path
+                class="leaf-vein"
+                d="M-9 38C-5 16 15-2 34-24M4 11l-2-21M16-3l20 1"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+              />
+            </g>
+          </g>
+        </svg>
+        <h1 id="pause-heading">This can wait.</h1>
+        <p id="block-context" class="block-context" role="status">
+          <span class="context-line" data-context-summary>Take a moment.</span>
+          <span class="context-line" data-context-detail>Then close this tab.</span>
+        </p>
+        <button type="button" data-close>Close tab</button>
+        <p id="close-status" class="close-status" role="status"></p>
+      </section>
+      <noscript
+        >Use your browser’s tab close button to leave this page. Check Unhook for your current focus
+        status.</noscript
+      >
+    </main>
+  </body>
 </html>

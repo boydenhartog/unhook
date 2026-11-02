@@ -1,4 +1,4 @@
 [workspace]
-members = ["crates/unhook-core", "crates/unhook-browser-host", "src-tauri"]
+members = ["crates/unhook-core", "crates/unhook-browser-host", "crates/unhook-system-helper", "src-tauri"]
 default-members = ["crates/unhook-core"]
 resolver = "2"

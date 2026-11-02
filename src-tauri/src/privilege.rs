@@ -66,7 +66,7 @@ pub(crate) fn native_manager() -> HostsManager {
     HostsManager::system()
 }
 
-pub fn change_hosts(domains: Option<&[String]>) -> Result<HostChange, String> {
+fn direct_change_hosts(domains: Option<&[String]>) -> Result<HostChange, String> {
     let manager = native_manager();
     let result = match domains {
         Some(domains) => manager.apply(domains),
@@ -93,6 +93,68 @@ pub fn change_hosts(domains: Option<&[String]>) -> Result<HostChange, String> {
         }
         Err(error) => Err(error.to_string()),
     }
+}
+
+/// Prefer the approved helper; development builds retain the OS password flow.
+pub fn change_hosts(
+    domains: Option<&[String]>,
+    ends_at: Option<i64>,
+) -> Result<HostChange, String> {
+    #[cfg(debug_assertions)]
+    if std::env::var_os("UNHOOK_TEST_HOSTS").is_some() {
+        return direct_change_hosts(domains);
+    }
+    #[cfg(target_os = "macos")]
+    {
+        if crate::system_service::status().state == "passwordRequired" {
+            return direct_change_hosts(domains);
+        }
+        crate::system_service::change(domains, ends_at).map(|warning| HostChange { warning })
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = ends_at;
+        direct_change_hosts(domains)
+    }
+}
+
+pub fn refresh_hosts(domains: &[String], ends_at: i64) -> Result<HostChange, String> {
+    #[cfg(debug_assertions)]
+    if std::env::var_os("UNHOOK_TEST_HOSTS").is_some() {
+        return Ok(HostChange { warning: None });
+    }
+    #[cfg(target_os = "macos")]
+    {
+        if crate::system_service::status().state == "passwordRequired" {
+            // Password-based writes have no service lease. Reconciliation already
+            // restores at the session deadline; polling must never open a prompt.
+            return Ok(HostChange { warning: None });
+        }
+        crate::system_service::change(Some(domains), Some(ends_at))
+            .map(|warning| HostChange { warning })
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (domains, ends_at);
+        Ok(HostChange { warning: None })
+    }
+}
+
+/// Only the user's explicit recovery action may open the legacy admin dialog.
+/// This removes Unhook's old hosts markers after upgrading from earlier versions.
+pub fn restore_legacy_hosts() -> Result<HostChange, String> {
+    #[cfg(debug_assertions)]
+    if std::env::var_os("UNHOOK_TEST_HOSTS").is_some() {
+        return direct_change_hosts(None);
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let service = crate::system_service::status();
+        if service.state == "ready" || service.management == "installer" {
+            return crate::system_service::change(None, None).map(|warning| HostChange { warning });
+        }
+    }
+    direct_change_hosts(None)
 }
 
 #[cfg(target_os = "macos")]

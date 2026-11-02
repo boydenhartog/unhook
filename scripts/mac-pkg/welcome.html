@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Install Unhook</title>
+    <style>
+      body {
+        font:
+          14px -apple-system,
+          sans-serif;
+        color: #263d35;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 24px;
+      }
+      .warning {
+        border-left: 4px solid #b66b20;
+        padding-left: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Unhook for Mac</h1>
+    <p>
+      The installer places Unhook in Applications and a persistent system blocker in protected
+      system locations. macOS may ask for administrator authorization to install or update the app.
+    </p>
+    @DEVELOPMENT_WARNING@
+    <p>
+      Unhook controls your focus sessions and schedules. Its browser companion blocks websites in
+      your browser. Connect the companion in Unhook Setup after installation.
+    </p>
+    <p>
+      Optional system blocking uses a background service. Installer authorization loads the
+      package-installed service. Ordinary focus and schedule transitions use that service without
+      another password prompt.
+    </p>
+    <p>
+      For updates, finish focus and quit Unhook. If the previous version registered an embedded
+      service, choose <strong>Remove system service</strong> in Setup before quitting. Your
+      blocklist and schedules are preserved.
+    </p>
+  </body>
+</html>

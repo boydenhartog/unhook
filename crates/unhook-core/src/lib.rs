@@ -7,7 +7,10 @@ mod dns;
 mod hosts;
 mod schedule;
 
-pub use browser::{BrowserState, BROWSER_EXTENSION_ORIGIN, BROWSER_HOST_NAME};
+pub use browser::{
+    browser_ack_compatible, BrowserState, BROWSER_ACK_PROTOCOL_VERSION, BROWSER_EXTENSION_ORIGIN,
+    BROWSER_HOST_NAME,
+};
 pub use dns::{flush_dns, system_hosts_path};
 pub use hosts::{render_hosts, HostsManager, HostsStatus, WriteOutcome};
 pub use schedule::{parse_time, Schedule};

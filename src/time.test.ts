@@ -1,5 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { remainingFocusSeconds } from './time';
+import { defaultSettings } from './service';
+import { remainingFocusSeconds, scheduleSummary } from './time';
+
+describe('schedule summary', () => {
+  it('summarizes the standard workweek', () => {
+    expect(scheduleSummary(defaultSettings().schedule)).toBe('Monday–Friday · 09:00–17:00');
+  });
+
+  it('lists other day selections in their stored order', () => {
+    const schedule = {
+      ...defaultSettings().schedule,
+      days: [6, 0, 2],
+      start: '08:30',
+      end: '16:00',
+    };
+    expect(scheduleSummary(schedule)).toBe('Sun, Mon, Wed · 08:30–16:00');
+  });
+});
 
 describe('focus countdown', () => {
   it('does not add a second when the render clock predates a new session', () => {

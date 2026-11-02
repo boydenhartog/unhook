@@ -1,0 +1,17 @@
+node_modules/
+dist/
+target/
+src-tauri/binaries/
+src-tauri/gen/
+coverage/
+test-results/
+playwright-report/
+.playwright-cli/
+.impeccable/
+.agents/
+.codex/
+AGENTS.md
+docs/ideation/
+docs/plans/
+docs/research/
+docs/verification.md

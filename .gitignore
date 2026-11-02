@@ -11,3 +11,7 @@ playwright-report/
 .playwright-cli/
 *.tsbuildinfo
 src-tauri/binaries/unhook-browser-host-*
+src-tauri/binaries/unhook-system-helper
+coverage/
+.impeccable/
+docs/ideation/

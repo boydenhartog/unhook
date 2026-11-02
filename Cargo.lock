@@ -3967,6 +3967,7 @@ name = "unhook-browser-host"
 version = "0.1.0"
 dependencies = [
  "dirs",
+ "serde",
  "serde_json",
  "tempfile",
  "unhook-core",
@@ -3985,7 +3986,7 @@ dependencies = [
 
 [[package]]
 name = "unhook-desktop"
-version = "0.1.0"
+version = "0.2.3"
 dependencies = [
  "chrono",
  "dirs",
@@ -3994,6 +3995,17 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-single-instance",
+ "tempfile",
+ "unhook-core",
+]
+
+[[package]]
+name = "unhook-system-helper"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "serde",
+ "serde_json",
  "tempfile",
  "unhook-core",
 ]

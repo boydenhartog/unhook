@@ -1,85 +1,110 @@
 # Unhook
 
-A lightweight, open-source desktop website blocker built with Tauri 2, React, TypeScript, and Rust. Start a timed focus session, keep an editable blocklist, or set a weekly work schedule with a lunch break.
+A local-first desktop website blocker for focused work. Start a timed session or set a weekly schedule, then let Unhook keep distracting sites out of the way.
 
-## Run
+Built with **Tauri 2, React 19, TypeScript, and Rust**. No accounts, analytics, cloud services, or remote blocklist requests.
 
-Install Node.js 22+ and stable Rust, plus the [Tauri platform prerequisites](https://v2.tauri.app/start/prerequisites/) (Xcode on macOS, Visual Studio C++ build tools and WebView2 on Windows, WebKitGTK and AppIndicator development packages on Linux).
+![Unhook focus screen in the simulated browser preview](docs/assets/focus-preview.png)
+
+## Project status
+
+Unhook is in development/private beta. The macOS app is used locally; signed public downloads, extension-store distribution, and clean-machine release acceptance remain outstanding. Windows and Linux have build/verification jobs configured, but native installation and enforcement still need platform acceptance.
+
+The browser preview is a safe way to explore the interface. It simulates settings and sessions and **does not block websites**.
+
+## Features
+
+- **Focus sessions:** block selected domains for a chosen duration, with an option to stop early.
+- **Weekly schedules:** selected weekdays, same-day work hours, and an optional break; valid edits save immediately.
+- **Browser companion:** Chrome/Brave request blocking that follows the desktop app's accepted state.
+- **Quiet interruptions:** a leaf releases and settles on the blocked page, with one immediate Close tab action and a static reduced-motion alternative.
+- **Optional system blocking on macOS:** an authenticated helper applies a bounded lease and restores Unhook's entries when the app stops refreshing it.
+- **Tray operation:** closing the window keeps scheduling alive; quitting stops focus. Launch at login is an explicit option on macOS 13+.
+
+## Try the interface
+
+Use Node.js 24.12 or later (24 LTS recommended):
 
 ```sh
-npm install
-npm run desktop
-```
-
-To review just the interface:
-
-```sh
+npm ci
 npm run dev
 ```
 
-Open `http://127.0.0.1:1420`. The browser shows a clearly labeled **preview**: sessions and settings are simulated locally, and no websites are blocked. Native command failures never switch to preview mode.
+Open [127.0.0.1:1420](http://127.0.0.1:1420). The preview runs entirely in the browser, with simulated state in localStorage. The separate [blocked-page preview](http://127.0.0.1:1420/extension/blocked.html) shows the interruption without accessing task storage.
 
-## Behavior
+For native development, install stable Rust and the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for your operating system. Follow the [fixture-based development guide](CONTRIBUTING.md#native-development-with-fixtures) before running `npm run desktop`; normal native operation can register the browser host and interact with system integrations.
 
-- A focus session blocks the configured domains until its timer expires. You can end it early.
-- Weekly schedules use the computer's local time, selected weekdays, and a same-day start/end window. An optional break temporarily unblocks sites. Overnight windows are rejected.
-- Manual sessions take priority over a schedule, including a scheduled break. Ending focus also skips the rest of the current day's scheduled window; the next scheduled day can start normally.
-- Closing the desktop window keeps the app running in the tray. Choose **Quit** there to restore Unhook's hosts section and exit.
-- Schedules and countdowns run in Rust, independent of the webview. The process must remain running; this version has no boot-time system service or autostart integration.
+## Engineering decisions
 
-## Permissions and recovery
+- **Rust owns native state.** Timers, schedules, persistence, and enforcement intent live outside the webview. The interface uses a typed service boundary; native errors never silently switch to simulation.
+- **Browser blocking is the default.** Session intent and actual hosts-file enforcement are separate states. Browser-only operations do not edit hosts.
+- **Privilege is narrowly scoped.** The browser host reads a fixed private snapshot and acknowledges applied state. The macOS helper authenticates peers, uses fixed paths, and grants short leases rather than giving the GUI administrator privileges.
+- **Hosts changes preserve other applications' data.** The engine validates its marked section, creates backups, and writes atomically while preserving unrelated bytes. Exact domains and explicit `www` companions receive IPv4 and IPv6 mappings.
 
-Windows builds request UAC administrator privileges at launch. macOS and Linux keep the GUI running as the current user and invoke a constrained helper through `osascript` administrator authorization or `pkexec` when a hosts write needs elevation. Linux requires a working graphical PolicyKit authentication agent. **Unix scheduled transitions can require authorization, so unattended enforcement is not guaranteed.** A privileged installed service would be needed to remove that limitation.
+The [architecture guide](docs/architecture.md) explains the components, data flow, and tradeoffs. The [implementation contract](docs/contract.md) defines IPC and runtime behavior.
 
-The engine only edits its own marked section. It validates domains again in Rust, includes IPv4 and IPv6 mappings and explicit `www` companions, preserves unrelated hosts bytes, refuses ambiguous markers, and creates backups before changes. It deliberately uses a narrow marked-section parser instead of rewriting the entire file through a general hosts parser.
-
-After a crash or forced termination, marked entries may remain until Unhook restarts and reconciles its persisted session. Use **Restore hosts** in the app or the CLI `unblock` command to recover. Never replace the entire hosts file from an old backup unless you have checked for other applications' changes. See [the operations guide](docs/operations.md).
-
-Hosts blocking matches exact domain names; it cannot automatically cover arbitrary subdomains, apps using direct IP addresses, proxies, or every browser DNS/cache behavior. DNS flush failures are displayed as warnings because the hosts edit may have succeeded. Existing browser connections may remain open.
-
-For Brave and Chrome, the [browser companion](docs/browser-companion.md) adds request blocking and a focus page, following the desktop app's blocklist and accepted session state automatically. Unhook remains the only settings and session controller. Install the extension once; the updated app registers its bundled, read-only native host on launch.
-
-## Engine CLI
-
-The core CLI is independent of Tauri. Use a temporary fixture for development; production hosts changes require root/administrator access.
+## Development checks
 
 ```sh
-cargo run -p unhook-core --bin unhook-cli -- --help
-```
-
-## Verify and package
-
-```sh
+npm run format:check
+npm run typecheck
 npm test
 npm run build
+```
+
+Prettier is pinned for consistent source formatting; run `npm run format` to apply it. TypeScript uses strict checks, including unused locals and parameters. Vitest covers the interface, extension, and packaging scripts.
+
+Before full Rust workspace checks, prepare the resources and sidecars in order:
+
+```sh
+npm run build
 npm run prepare:browser-host
-cargo test --workspace
+npm run prepare:system-helper
 cargo fmt --all -- --check
+rustfmt --edition 2021 --check native/macos/build-support.rs
+cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 ```
 
-Build on the target operating system:
+`npm run test:core` runs the core engine tests without building the desktop app. See [CONTRIBUTING.md](CONTRIBUTING.md) for focused tests and verification boundaries.
+
+## Behavior and limits
+
+Manual focus takes priority over schedules and scheduled breaks. Ending focus skips the rest of the active scheduled window; editing the schedule clears that pause. Schedules use local wall-clock time and require Unhook to remain running while the computer is awake. Overnight windows are not supported.
+
+Blocking matches exact domains and explicit `www` companions, not arbitrary subdomains. Existing browser connections, DNS caches, proxies, direct IP access, and deliberate bypasses limit enforcement. This is a focus aid, not a tamper-proof parental-control boundary.
+
+The companion and system helper use expiring state/leases so a stopped app cannot indefinitely retain their active enforcement. Password-based or older builds can leave hosts entries requiring explicit **Restore system access**. Recovery removes only Unhook's marked section; never replace the entire hosts file from an old backup. See [operations and recovery](docs/operations.md).
+
+## Packaging and installation
+
+Build installers on their target operating system:
 
 ```sh
-# macOS
-npm run tauri -- build --bundles app,dmg
+# macOS private beta: inspect the package without installing it
+npm run package:macos -- --development
+
 # Windows
 npm run tauri -- build --bundles msi
+
 # Linux
 npm run tauri -- build --bundles deb
 ```
 
-Installers are written under `target/release/bundle/`. The included GitHub Actions workflow verifies the frontend and Rust code and builds all three native formats. It produces unsigned test artifacts; public distribution needs macOS signing/notarization and Windows signing credentials configured by the maintainer. Refer to the official [Windows installer](https://v2.tauri.app/distribute/windows-installer/) and [macOS application bundle](https://v2.tauri.app/distribute/macos-application-bundle/) guides.
+Outputs are under `target/release/bundle/`; macOS PKGs are in its `pkg/` directory. The PKG installs the app and persistent system daemon. The companion currently uses guided **Load unpacked** installation, once per browser profile.
 
-If macOS DMG packaging reports that it cannot send Apple events to Finder, use `CI=true npm run tauri -- build --bundles dmg`. This skips cosmetic Finder layout automation and builds the same app without requesting additional OS permission. See [verification notes](docs/verification.md) for what was exercised locally.
+Public macOS packages require matching Developer ID Application/Installer teams, final-package notarization/stapling, and clean-machine acceptance. Development packages and CI artifacts do not establish that those release checks have passed.
 
-## Structure
+- [Browser companion setup and protocol](docs/browser-companion.md)
+- [macOS installer and removal](docs/macos-installer.md)
+- [System helper security boundary](docs/system-helper.md)
+- [Release acceptance record](docs/beta-acceptance.md)
+- [Historical verification notes](docs/verification.md)
 
-| Path | Responsibility |
-| --- | --- |
-| `src/` | Interface, native IPC adapter, explicit browser preview |
-| `crates/unhook-core/` | Domain validation, hosts transactions, schedules, DNS, CLI |
-| `src-tauri/` | Desktop commands, persistence, scheduler, privilege helper, tray |
-| `docs/contract.md` | Shared IPC and scheduling contract |
+If local macOS DMG packaging cannot send Apple events to Finder, `CI=true npm run tauri -- build --bundles dmg` skips cosmetic Finder layout automation without requesting extra OS permissions.
 
-MIT licensed. No accounts, analytics, cloud services, or remote blocklist requests.
+## Contributing and license
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup, code conventions, and safe verification. Contributions should preserve the privacy model and keep native contracts, TypeScript types, tests, and documentation aligned.
+
+Licensed under the [MIT License](LICENSE).

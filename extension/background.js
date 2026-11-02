@@ -1,7 +1,11 @@
 import { createBlocker } from './blocker.js';
 import { LEASE_MS } from './rules.js';
+import { installReflectionMessages } from './reflection.js';
+import { installBlockedContextMessages } from './blocked-context.js';
 
 const blocker = createBlocker(chrome);
+installReflectionMessages(chrome);
+installBlockedContextMessages(chrome, site => blocker.context(site));
 let port, poll, retry, deadline;
 const report = error => {
   console.error('Unhook browser blocking:', error.message);
@@ -29,7 +33,26 @@ function connect() {
     const current = chrome.runtime.connectNative('org.unhook.browser');
     port = current;
     current.onMessage.addListener(state => {
-      void apply(state, state !== null).catch(async error => {
+      if (state?.type === 'ack') return;
+      void (async () => {
+        const protocol = state?.ackProtocolVersion;
+        if (protocol !== undefined && protocol !== 1) {
+          throw new Error(
+            'Update Unhook and its companion to use a compatible browser connection.',
+          );
+        }
+        await apply(state, state !== null);
+        if (state && port === current) {
+          const acknowledgement = {
+            type: 'applied',
+            updatedAt: state.updatedAt,
+            extensionVersion: chrome.runtime.getManifest().version,
+          };
+          // Older hosts reject unknown request fields. Negotiate before adding one.
+          if (protocol === 1) acknowledgement.protocolVersion = 1;
+          current.postMessage(acknowledgement);
+        }
+      })().catch(async error => {
         await apply(null, false).catch(report);
         report(error);
       });
@@ -44,8 +67,11 @@ function connect() {
       retry = setTimeout(connect, 5000);
     });
     const request = () => {
-      try { current.postMessage({ type: 'getState' }); }
-      catch { current.disconnect(); }
+      try {
+        current.postMessage({ type: 'getState' });
+      } catch {
+        current.disconnect();
+      }
     };
     request();
     poll = setInterval(request, 1000);
@@ -60,19 +86,27 @@ chrome.alarms.onAlarm.addListener(alarm => {
   if (alarm.name === 'unhook-reconnect') connect();
 });
 chrome.tabs.onUpdated.addListener((id, change, tab) => {
-  if (change.url || change.status === 'loading' || change.status === 'complete') void blocker.checkTab(tab).catch(report);
+  if (change.url || change.status === 'loading' || change.status === 'complete')
+    void blocker.checkTab(tab).catch(report);
 });
 chrome.tabs.onActivated.addListener(({ tabId }) => {
-  void chrome.tabs.get(tabId).then(tab => blocker.checkTab(tab)).catch(() => {});
+  void chrome.tabs
+    .get(tabId)
+    .then(tab => blocker.checkTab(tab))
+    .catch(() => {});
 });
 chrome.webNavigation.onCommitted.addListener(details => {
-  if (details.frameId === 0) void blocker.checkTab({ id: details.tabId, url: details.url }).catch(report);
+  if (details.frameId === 0)
+    void blocker.checkTab({ id: details.tabId, url: details.url }).catch(report);
 });
 
 async function start() {
   const saved = await chrome.storage.session.get('state');
-  try { await apply(saved.state ?? null, false); }
-  catch { await apply(null, false); }
+  try {
+    await apply(saved.state ?? null, false);
+  } catch {
+    await apply(null, false);
+  }
   await chrome.alarms.create('unhook-reconnect', { periodInMinutes: 0.5 });
   connect();
 }

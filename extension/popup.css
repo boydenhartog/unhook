@@ -1,3 +1,19 @@
-body { width: 260px; margin: 0; padding: 22px; background: #f6f8f4; color: #263d35; font: 14px/1.6 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-strong { color: #4b785e; font-size: 23px; }
-#status { font-weight: 600; }
+body {
+  width: 260px;
+  margin: 0;
+  padding: 22px;
+  background: #f6f8f4;
+  color: #263d35;
+  font:
+    14px/1.6 -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+}
+strong {
+  color: #4b785e;
+  font-size: 23px;
+}
+#status {
+  font-weight: 600;
+}

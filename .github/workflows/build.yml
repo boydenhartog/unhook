@@ -36,20 +36,27 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev patchelf
       - run: npm ci
+      - run: npm run format:check
       - run: npm test
       - run: npm run build
       - run: npm run prepare:browser-host
+      - run: npm run prepare:system-helper
       - run: cargo fmt --all -- --check
+      - run: rustfmt --edition 2021 --check native/macos/build-support.rs
       - run: cargo test --workspace
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Build native installer
         run: npm run tauri -- build --bundles ${{ matrix.bundles }}
+      - name: Build private beta macOS package (unsigned installer)
+        if: runner.os == 'macOS'
+        run: npm run package:macos -- --development --skip-build
       - uses: actions/upload-artifact@v4
         with:
           name: Unhook-${{ runner.os }}
           path: |
             target/release/bundle/dmg/*.dmg
             target/release/bundle/macos/*.app
+            target/release/bundle/pkg/*_PRIVATE_BETA_UNSIGNED.pkg
             target/release/bundle/msi/*.msi
             target/release/bundle/deb/*.deb
           if-no-files-found: error

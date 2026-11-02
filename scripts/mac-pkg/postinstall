@@ -1,0 +1,30 @@
+#!/bin/sh
+set -eu
+. "$(/usr/bin/dirname "$0")/common.sh"
+[ "${3:-/}" = / ] || fail "Install Unhook on the current startup disk."
+ancestors
+for path in "$app" "$app/Contents" "$app/Contents/MacOS" "$app/Contents/MacOS/unhook" "$helper" "$job" "$support" "$pins"; do protected "$path"; done
+# Check the complete app tree without following symlinks. Internal bundle
+# symlinks were confined during packaging; the root app directory is protected.
+unsafe=$(/usr/bin/find "$app" ! -type l \( ! -user root -o -perm -0022 \) -print) || fail "Cannot inspect installed app ownership."
+[ -z "$unsafe" ] || fail "Installed app contains unprotected files. Reinstall Unhook."
+scratch=$(/usr/bin/mktemp -d /private/tmp/unhook-postinstall.XXXXXX)
+trap '/bin/rm -rf "$scratch"' EXIT HUP INT TERM
+: > "$scratch/hashes"
+verify_code "$app" org.unhook.desktop
+/usr/bin/sort "$scratch/hashes" > "$scratch/expected"
+/usr/bin/awk 'length($0)!=40 || $0 !~ /^[0-9a-f]+$/ || seen[$0]++ {exit 1} END {if(NR<1 || NR>16)exit 1}' "$pins" || fail "Invalid approved executable code hashes. Reinstall Unhook."
+/usr/bin/cmp -s "$scratch/expected" "$pins" || fail "Installed executable hashes differ from approved pins. Service remains stopped; reinstall Unhook."
+: > "$scratch/hashes"
+verify_code "$helper" org.unhook.system-helper
+# Verify fixed launchd configuration before loading root code.
+[ "$(/usr/libexec/PlistBuddy -c 'Print :Label' "$job")" = "$label" ] || fail "Invalid installed daemon label."
+[ "$(/usr/libexec/PlistBuddy -c 'Print :ProgramArguments:0' "$job")" = "$helper" ] || fail "Invalid installed daemon program."
+[ "$(/usr/libexec/PlistBuddy -c 'Print :ProgramArguments:1' "$job")" = --installed ] || fail "Invalid installed daemon mode."
+[ "$(/usr/libexec/PlistBuddy -c 'Print :Sockets:Control:SockPathName' "$job")" = /var/run/org.unhook.installed-system-helper.sock ] || fail "Invalid installed daemon socket."
+if /bin/launchctl print "system/$label" >/dev/null 2>&1; then
+  /bin/launchctl bootout "system/$label" || fail "Cannot restart installed daemon. Reinstall Unhook."
+fi
+/bin/launchctl enable "system/$label" || fail "Cannot enable installed daemon. Reinstall Unhook."
+/bin/launchctl bootstrap system "$job" || fail "Cannot load installed daemon. Reinstall Unhook; system blocking is unavailable."
+exit 0

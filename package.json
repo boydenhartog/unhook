@@ -1,15 +1,23 @@
 {
   "name": "unhook",
-  "version": "0.1.0",
+  "version": "0.2.3",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=24.12.0"
+  },
   "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc -b",
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build && node scripts/package-extension.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "tauri": "tauri",
     "desktop": "tauri dev",
     "prepare:browser-host": "node scripts/prepare-browser-host.mjs",
+    "prepare:system-helper": "node scripts/prepare-system-helper.mjs",
+    "package:macos": "node scripts/package-macos.mjs",
     "test": "vitest run",
     "test:core": "cargo test -p unhook-core"
   },
@@ -21,11 +29,14 @@
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.8.0",
+    "@testing-library/react": "^16.3.3",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^4.7.0",
+    "jsdom": "^29.1.1",
+    "prettier": "3.9.10",
     "typescript": "~5.8.3",
-    "vite": "^6.3.5",
-    "vitest": "^4.1.11"
+    "vite": "^6.4.5",
+    "vitest": "^4.1.12"
   }
 }

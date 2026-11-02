@@ -9,7 +9,12 @@ execFileSync('cargo', args, { stdio: 'inherit' });
 const name = `unhook-browser-host${target.includes('windows') ? '.exe' : ''}`;
 const targetDirectory = resolve(process.env.CARGO_TARGET_DIR || 'target');
 const source = resolve(targetDirectory, target, 'release', name);
-const destinations = [resolve('src-tauri/binaries', `unhook-browser-host-${target}${target.includes('windows') ? '.exe' : ''}`)];
+const destinations = [
+  resolve(
+    'src-tauri/binaries',
+    `unhook-browser-host-${target}${target.includes('windows') ? '.exe' : ''}`,
+  ),
+];
 if (target === host) destinations.push(resolve(targetDirectory, 'debug', name));
 for (const destination of destinations) {
   mkdirSync(dirname(destination), { recursive: true });

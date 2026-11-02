@@ -1,7 +1,9 @@
 mod browser;
 mod controller;
+mod login_service;
 pub mod privilege;
 mod session;
+mod system_service;
 
 use chrono::Local;
 use controller::{AppStatus, Controller, NativeHosts};
@@ -22,6 +24,206 @@ struct Desktop {
     status_menu: MenuItem<tauri::Wry>,
     may_exit: AtomicBool,
     browser: browser::Bridge,
+    setup_flags: Mutex<(bool, bool)>,
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SetupStatus {
+    completed: bool,
+    browser_connected: bool,
+    extension_path: Option<String>,
+    extension_version: Option<String>,
+    browser_last_seen: Option<i64>,
+    system_blocking_enabled: bool,
+    system: system_service::SystemServiceStatus,
+    login: login_service::LoginServiceStatus,
+}
+
+fn read_setup_status(app: &tauri::AppHandle) -> SetupStatus {
+    let desktop = app.state::<Desktop>();
+    let (completed, system_blocking_enabled) = *desktop
+        .setup_flags
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let receipt = desktop.browser.connection(Local::now().timestamp_millis());
+    SetupStatus {
+        completed,
+        browser_connected: receipt.is_some(),
+        extension_path: desktop
+            .browser
+            .extension_path
+            .as_ref()
+            .map(|path| path.display().to_string()),
+        extension_version: receipt
+            .as_ref()
+            .map(|receipt| receipt.extension_version.clone())
+            .or_else(|| desktop.browser.extension_version.clone()),
+        browser_last_seen: receipt.map(|receipt| receipt.last_seen),
+        system_blocking_enabled,
+        system: system_service::status(),
+        login: login_service::status(),
+    }
+}
+
+#[tauri::command]
+async fn get_setup_status(app: tauri::AppHandle) -> Result<SetupStatus, String> {
+    tauri::async_runtime::spawn_blocking(move || read_setup_status(&app))
+        .await
+        .map_err(|e| e.to_string())
+}
+
+fn launch_browser(browser: &str) -> Result<(), String> {
+    let browser = match browser {
+        "brave" => "Brave Browser",
+        "chrome" => "Google Chrome",
+        _ => return Err("Choose Chrome or Brave.".into()),
+    };
+    #[cfg(target_os = "macos")]
+    let mut command = {
+        let mut command = std::process::Command::new("/usr/bin/open");
+        command.args(["-a", browser, "chrome://extensions/"]);
+        command
+    };
+    #[cfg(target_os = "linux")]
+    let mut command = {
+        let mut command = std::process::Command::new(if browser == "Brave Browser" {
+            "brave-browser"
+        } else {
+            "google-chrome"
+        });
+        command.arg("chrome://extensions/");
+        command
+    };
+    #[cfg(target_os = "windows")]
+    let mut command = {
+        let mut command = std::process::Command::new(if browser == "Brave Browser" {
+            "brave.exe"
+        } else {
+            "chrome.exe"
+        });
+        command.arg("chrome://extensions/");
+        command
+    };
+    #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
+    return Err(format!("Open the Extensions page in {browser}."));
+    #[cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))]
+    {
+        #[cfg(target_os = "macos")]
+        {
+            let result = command.status().map_err(|error| format!("Could not open {browser}. Open its Extensions page from the browser menu. {error}"))?;
+            if !result.success() {
+                return Err(format!(
+                    "Could not open {browser}. Open its Extensions page from the browser menu."
+                ));
+            }
+        }
+        #[cfg(not(target_os = "macos"))]
+        command.spawn().map_err(|error| {
+            format!(
+                "Could not open {browser}. Open its Extensions page from the browser menu. {error}"
+            )
+        })?;
+        Ok(())
+    }
+}
+
+#[tauri::command]
+async fn open_browser_setup(app: tauri::AppHandle, browser: String) -> Result<SetupStatus, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        if app.state::<Desktop>().browser.extension_path.is_none() {
+            return Err("The companion folder is missing. Reinstall this Unhook build.".into());
+        }
+        launch_browser(&browser)?;
+        Ok(read_setup_status(&app))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn reveal_extension(app: tauri::AppHandle) -> Result<(), String> {
+    let path = app
+        .state::<Desktop>()
+        .browser
+        .extension_path
+        .clone()
+        .ok_or("The companion folder is missing from this build.")?;
+    tauri::async_runtime::spawn_blocking(move || {
+        #[cfg(target_os = "macos")]
+        let mut command = std::process::Command::new("/usr/bin/open");
+        #[cfg(target_os = "windows")]
+        let mut command = std::process::Command::new("explorer.exe");
+        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+        let mut command = std::process::Command::new("xdg-open");
+        command
+            .arg(path)
+            .status()
+            .map_err(|e| format!("Could not show the companion folder: {e}"))?
+            .success()
+            .then_some(())
+            .ok_or("Could not show the companion folder.".into())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn complete_setup(app: tauri::AppHandle) -> Result<SetupStatus, String> {
+    operate(app.clone(), |controller| {
+        controller.complete_setup(Local::now())
+    })
+    .await?;
+    get_setup_status(app).await
+}
+
+#[tauri::command]
+async fn install_system_blocker(app: tauri::AppHandle) -> Result<SetupStatus, String> {
+    tauri::async_runtime::spawn_blocking(system_service::install)
+        .await
+        .map_err(|e| e.to_string())??;
+    get_setup_status(app).await
+}
+
+#[tauri::command]
+async fn uninstall_system_blocker(app: tauri::AppHandle) -> Result<SetupStatus, String> {
+    // Restore the system layer before removing the service. The accepted browser
+    // session remains active, and a failed restore must prevent unregistration.
+    // Hold the controller lock through removal so a concurrent enable cannot
+    // reapply hosts between restoration and unregistration.
+    operate(app.clone(), |controller| {
+        let status = controller.restore_system_hosts(Local::now())?;
+        system_service::uninstall()?;
+        Ok(status)
+    })
+    .await?;
+    get_setup_status(app).await
+}
+
+#[tauri::command]
+async fn set_launch_at_login(app: tauri::AppHandle, enabled: bool) -> Result<SetupStatus, String> {
+    tauri::async_runtime::spawn_blocking(move || login_service::set_enabled(enabled))
+        .await
+        .map_err(|e| e.to_string())??;
+    get_setup_status(app).await
+}
+
+#[tauri::command]
+async fn open_system_settings() -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(system_service::open_settings)
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn set_system_blocking(app: tauri::AppHandle, enabled: bool) -> Result<AppStatus, String> {
+    operate(app, move |controller| {
+        if enabled && !system_service::status().can_block() {
+            return Err("Approve the system blocker in setup before enabling it.".into());
+        }
+        controller.set_system_blocking(enabled, Local::now())
+    })
+    .await
 }
 
 fn publish(app: &tauri::AppHandle, mut status: AppStatus) {
@@ -86,6 +288,13 @@ async fn operate(
             let mut controller = desktop.controller.lock().unwrap_or_else(|e| e.into_inner());
             result = action(&mut controller);
             status = controller.status(Local::now());
+            *desktop
+                .setup_flags
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = (
+                controller.persisted.setup_completed,
+                controller.persisted.system_blocking_enabled,
+            );
         }
         publish(&app, status);
         result
@@ -113,7 +322,10 @@ async fn stop_focus(app: tauri::AppHandle) -> Result<AppStatus, String> {
 }
 #[tauri::command]
 async fn restore_hosts(app: tauri::AppHandle) -> Result<AppStatus, String> {
-    stop_focus(app).await
+    operate(app, |controller| {
+        controller.restore_system_hosts(Local::now())
+    })
+    .await
 }
 fn show(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
@@ -145,7 +357,16 @@ pub fn run() {
             save_settings,
             start_focus,
             stop_focus,
-            restore_hosts
+            restore_hosts,
+            get_setup_status,
+            open_browser_setup,
+            reveal_extension,
+            complete_setup,
+            install_system_blocker,
+            uninstall_system_blocker,
+            set_launch_at_login,
+            open_system_settings,
+            set_system_blocking
         ])
         .setup(|app| {
             let path = app.path().app_data_dir()?.join("settings.json");
@@ -161,20 +382,18 @@ pub fn run() {
             let browser = browser::Bridge::setup(
                 path.parent().ok_or("Invalid app data location")?.into(),
                 fixture,
+                Some(&app.path().resource_dir()?.join("browser-extension")),
             );
             let controller = Controller::load(path, Box::new(NativeHosts));
             let initial = controller.status(Local::now());
+            let setup_flags = (
+                controller.persisted.setup_completed,
+                controller.persisted.system_blocking_enabled,
+            );
             let status_menu = MenuItem::with_id(app, "status", "Focus off", false, None::<&str>)?;
             let open = MenuItem::with_id(app, "show", "Open Unhook", true, None::<&str>)?;
-            let stop = MenuItem::with_id(
-                app,
-                "stop",
-                "Stop focus / restore websites",
-                true,
-                None::<&str>,
-            )?;
-            let quit =
-                MenuItem::with_id(app, "quit", "Restore websites and quit", true, None::<&str>)?;
+            let stop = MenuItem::with_id(app, "stop", "Stop focus", true, None::<&str>)?;
+            let quit = MenuItem::with_id(app, "quit", "Stop focus and quit", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&status_menu, &open, &stop, &quit])?;
             TrayIconBuilder::with_id("unhook")
                 .icon(tauri::image::Image::from_bytes(include_bytes!(
@@ -202,6 +421,7 @@ pub fn run() {
                 status_menu,
                 may_exit: AtomicBool::new(false),
                 browser,
+                setup_flags: Mutex::new(setup_flags),
             });
             publish(app.handle(), initial);
             let handle = app.handle().clone();

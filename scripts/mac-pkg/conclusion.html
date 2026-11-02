@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Unhook installed</title>
+    <style>
+      body {
+        font:
+          14px -apple-system,
+          sans-serif;
+        color: #263d35;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 24px;
+      }
+      .warning {
+        border-left: 4px solid #b66b20;
+        padding-left: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Open Unhook to finish setup</h1>
+    @DEVELOPMENT_WARNING@
+    <ol>
+      <li>Open Unhook from Applications as your normal user.</li>
+      <li>
+        Connect the browser companion in Setup. During the beta, follow the guided Load unpacked
+        instructions and confirm the browser reports Connected.
+      </li>
+      <li>
+        Wait for the package-installed system service to show Ready in Setup before enabling system
+        blocking.
+      </li>
+      <li>
+        Optionally enable Launch Unhook at login. Keep Unhook running for automatic schedules.
+      </li>
+    </ol>
+    <p>
+      The package-installed system service handles routine blocking changes without password
+      prompts. Updates, revoked permissions and system changes may require approval again.
+    </p>
+    <p>
+      Installer success confirms installation. Service readiness and browser connection are checked
+      separately inside Unhook.
+    </p>
+  </body>
+</html>

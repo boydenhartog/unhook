@@ -1,14 +1,28 @@
 {
   "manifest_version": 3,
   "name": "Unhook Companion",
-  "version": "0.1.0",
+  "version": "0.2.2",
   "description": "Browser blocking controlled by the Unhook desktop app. No separate settings or account.",
   "minimum_chrome_version": "120",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAgrXM8yqIpVxuT9ZNj0GoUPMBLXrPNJgS0quIg/AWJxVwiEuqhUvXRfdCqeHc+Ae+vWBmTMwy2cHzDw+EYy+Q7qmpSBGb+fsalpV2uIjIS4NEqUB2+AMn+cBIdhKT6DCNIeKSYHYjpUCfaKw2hs/dGKFWl3GuyPY2M3/ohPx8x+s0SiorHSoaQdg42zZw8O+Vlb8+1yMrmiVjsif4melDVa5MDeKsa1X7wM9qIyL0l38AmXokJzofib9h6QnROYZE8ywqhbTb3ZGtQeQwOV6gihN+MAHw4PuAXwe3Q8yK6gAll5JjT9eUrP5wEYZqzuJT6dbzk2pBsm2pmtsUu1D7VQIDAQAB",
-  "permissions": ["nativeMessaging", "declarativeNetRequest", "tabs", "storage", "alarms", "webNavigation"],
+  "permissions": [
+    "nativeMessaging",
+    "declarativeNetRequest",
+    "tabs",
+    "storage",
+    "alarms",
+    "webNavigation"
+  ],
   "host_permissions": ["http://*/*", "https://*/*"],
   "background": { "service_worker": "background.js", "type": "module" },
-  "action": { "default_title": "Unhook · controlled by the desktop app", "default_popup": "popup.html" },
-  "web_accessible_resources": [{ "resources": ["blocked.html", "blocked.css"], "matches": ["http://*/*", "https://*/*"] }],
-  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'none'; base-uri 'none'" }
+  "action": {
+    "default_title": "Unhook · controlled by the desktop app",
+    "default_popup": "popup.html"
+  },
+  "web_accessible_resources": [
+    { "resources": ["blocked.html", "blocked.css"], "matches": ["http://*/*", "https://*/*"] }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; base-uri 'none'"
+  }
 }
