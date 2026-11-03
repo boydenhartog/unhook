@@ -21,6 +21,44 @@ The browser preview is a safe way to explore the interface. It simulates setting
 - **Optional system blocking on macOS:** an authenticated helper applies a bounded lease and restores Unhook's entries when the app stops refreshing it.
 - **Tray operation:** closing the window keeps scheduling alive; quitting stops focus. Launch at login is an explicit option on macOS 13+.
 
+## Install and start using Unhook
+
+Unhook is currently a private beta, with **no published installer releases yet**. macOS requires **macOS 13 or later**. Windows and Linux packages are experimental; installation and blocking still need native platform acceptance.
+
+### 1. Get an installer
+
+If you have been given a beta installer, use the steps below. Otherwise, open [GitHub Actions](https://github.com/boydenhartog/unhook/actions/workflows/build.yml), choose a successful build of `main`, and download the artifact for your operating system: `Unhook-macOS`, `Unhook-Windows`, or `Unhook-Linux`. GitHub requires you to sign in to download workflow artifacts. Extract the downloaded ZIP first. These are unsigned test builds, not verified public releases.
+
+If no artifact is available, follow [Build an installer from source](#build-an-installer-from-source). Node.js and Rust are only needed to build Unhook yourself, not to use an installer.
+
+### 2. Install the desktop app
+
+- **macOS:** use the `Unhook_<version>_<architecture>_PRIVATE_BETA_UNSIGNED.pkg` from the artifact's `pkg` folder. Choose `arm64` for Apple silicon or `x86_64` for Intel; `universal` supports both. Double-click the PKG and follow Installer, authorizing installation with an administrator account. It installs `/Applications/Unhook.app` and a persistent system blocking service. Open **Unhook** from Applications as your normal user. The private-beta PKG is unsigned and has not completed notarization or clean-machine Gatekeeper acceptance; if macOS refuses to open it, report that to the beta provider. See the [macOS installer guide](docs/macos-installer.md) for details.
+- **Windows (experimental):** open the `.msi` installer, follow its prompts, then launch **Unhook** from the Start menu.
+- **Linux (experimental, Debian/Ubuntu):** install the `.deb` using your system's package installer, then launch **Unhook** from the applications menu.
+
+### 3. Connect Chrome or Brave
+
+The desktop app needs its browser companion to block sites in Chrome or Brave. There is no extension-store download yet.
+
+1. In Unhook's **Setup**, choose **Chrome** or **Brave**, then click **Open Chrome setup** or **Open Brave setup**.
+2. On the browser's extensions page, turn on **Developer mode** and click **Load unpacked**.
+3. Select the **Unhook companion folder** shown in Setup. Use **Show folder** to find it. Keep this folder in place so the browser can continue loading the extension.
+4. Keep Unhook running and wait for **Browser companion connected**. Repeat these steps for every browser profile you want to use, checking **Connected** in that profile's companion popup.
+5. Click **Continue**. On macOS, system blocking is optional: wait for **System service connected** before enabling **Use system blocking**. You can also enable **Launch Unhook at login**. Click **Finish setup**.
+
+If the companion does not connect, keep the desktop app open, reload the extension on the browser's extensions page, and check that you loaded the folder shown in Setup. More help is in the [browser companion guide](docs/browser-companion.md).
+
+### 4. Start your first focus session
+
+1. Open **Blocklist** and add the domains you want to block, such as `reddit.com`. The `www` version is included; add other subdomains separately.
+2. Open **Focus**, choose a duration, and click **Start focusing**.
+3. Visit a blocked domain in the connected browser to confirm that Unhook's focus page appears. Use **End focus session** to stop early, or let the timer finish.
+
+Keep Unhook running while you want blocking or schedules to work. Closing the window leaves it running in the tray; quitting stops focus. You can configure recurring hours under **Schedule**.
+
+To uninstall on macOS, end focus, disable **Launch Unhook at login**, and choose **Remove system service** in Setup before quitting and removing the app. Remove the companion from each browser profile as well. See [full removal instructions](docs/macos-installer.md#removal).
+
 ## Try the interface
 
 Use Node.js 24.12 or later (24 LTS recommended):
@@ -76,9 +114,17 @@ Blocking matches exact domains and explicit `www` companions, not arbitrary subd
 
 The companion and system helper use expiring state/leases so a stopped app cannot indefinitely retain their active enforcement. Password-based or older builds can leave hosts entries requiring explicit **Restore system access**. Recovery removes only Unhook's marked section; never replace the entire hosts file from an old backup. See [operations and recovery](docs/operations.md).
 
-## Packaging and installation
+## Build an installer from source
 
-Build installers on their target operating system:
+Install Git, [Node.js 24.12 or later](https://nodejs.org/), stable Rust, and the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for your operating system. On macOS, this includes Xcode command-line tools. Build on the operating system where you intend to use Unhook:
+
+```sh
+git clone https://github.com/boydenhartog/unhook.git
+cd unhook
+npm ci
+```
+
+Then run the command for your operating system. These commands prepare the companion and native sidecars automatically:
 
 ```sh
 # macOS private beta: inspect the package without installing it
@@ -91,7 +137,7 @@ npm run tauri -- build --bundles msi
 npm run tauri -- build --bundles deb
 ```
 
-Outputs are under `target/release/bundle/`; macOS PKGs are in its `pkg/` directory. The PKG installs the app and persistent system daemon. The companion currently uses guided **Load unpacked** installation, once per browser profile.
+Outputs are under `target/release/bundle/`: macOS PKGs in `pkg/`, Windows installers in `msi/`, and Linux packages in `deb/`. Build and inspect the artifact first, then follow [the installation steps above](#2-install-the-desktop-app) when you are ready to install it.
 
 Public macOS packages require matching Developer ID Application/Installer teams, final-package notarization/stapling, and clean-machine acceptance. Development packages and CI artifacts do not establish that those release checks have passed.
 
